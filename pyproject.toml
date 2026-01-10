@@ -27,3 +27,8 @@ packages = ["ldt"]
 
 [tool.hatch.build.targets.sdist]
 exclude = ["/tests", "/scripts", ".gitignore", "uv.lock"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
