@@ -26,7 +26,14 @@ path = "ldt/__init__.py"
 packages = ["ldt"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/tests", "/scripts", ".gitignore", "uv.lock"]
+exclude = [
+    "/tests",
+    "/.github",
+    ".gitignore",
+    "default.gitignore",
+    "uv.lock",
+    "*.spec"
+]
 
 [dependency-groups]
 dev = [
