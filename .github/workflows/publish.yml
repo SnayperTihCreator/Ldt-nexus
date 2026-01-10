@@ -3,22 +3,19 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - 'v*' # Срабатывает только на теги v0.1.0, v1.0.0 и т.д.
+      - 'v*'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-
       - name: Set up Python
         run: uv python install 3.11
-
       - name: Run Pytest
         run: |
           uv sync --all-extras
@@ -29,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      id-token: write  # Нужно для Trusted Publishing
-      contents: read
+      id-token: write
+      contents: write # Нужно для создания релиза и загрузки файлов
 
     steps:
       - uses: actions/checkout@v4
@@ -43,3 +40,11 @@ jobs:
 
       - name: Publish to PyPI
         run: uv publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
