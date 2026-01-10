@@ -1,0 +1,29 @@
+[project]
+name = "ldt-nexus"
+dynamic = ["version"]
+description = "Reactive data-tree management with pathlib-hybrid interface"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "SnayperTihCreator" }]
+dependencies = [
+    "attrs>=23.1.0",
+]
+
+[project.optional-dependencies]
+yaml = ["pyyaml>=6.0"]
+toml = ["toml>=0.10.2"]
+json5 = ["json5>=0.9.14"]
+all = ["ldt-nexus[yaml,toml,json5]"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "ldt/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ldt"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/tests", "/scripts", ".gitignore", "uv.lock"]
