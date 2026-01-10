@@ -41,7 +41,7 @@ class Json5Driver(BaseDriver):
     def write(self, path: PathProtocol, data: dict):
         json5 = self._get_engine()
         with path.open("w", encoding="utf-8") as f:
-            json5.dump(data, f, quote_keys=True)
+            json5.dump(data, f, quote_keys=True, indent=4, ensure_ascii=False)
 
 
 class TomlDriver(BaseDriver):

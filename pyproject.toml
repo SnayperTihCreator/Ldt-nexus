@@ -35,7 +35,11 @@ exclude = [
     "*.spec"
 ]
 
+[tool.uv.sources]
+ldt-nexus = { workspace = true }
+
 [dependency-groups]
 dev = [
+    "ldt-nexus[all]",
     "pytest>=9.0.2",
 ]

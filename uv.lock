@@ -63,6 +63,7 @@ yaml = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ldt-nexus", extra = ["all"] },
     { name = "pytest" },
 ]
 
@@ -79,7 +80,10 @@ requires-dist = [
 provides-extras = ["all", "json5", "toml", "yaml"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.2" }]
+dev = [
+    { name = "ldt-nexus", extras = ["all"], editable = "." },
+    { name = "pytest", specifier = ">=9.0.2" },
+]
 
 [[package]]
 name = "packaging"
