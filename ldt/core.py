@@ -47,32 +47,40 @@ class LDT:
     
     # --- Управление состоянием ---
     
+    def get_raw_branch(self, path: str) -> Optional[dict]:
+        """Возвращает прямую ссылку на словарь ветки (без копирования)"""
+        if not path: return self._data
+        
+        curr = self._data
+        for k in path.split('.'):
+            if isinstance(curr, dict) and k in curr:
+                curr = curr[k]
+            else:
+                return None
+        return curr if isinstance(curr, dict) else None
+    
     def freeze(self):
         """Замораживает текущую ветку. Изменения станут невозможны."""
         self._readonly = True
     
     def set(self, key: str, value: Any) -> bool:
-        """
-        Устанавливает значение.
-        Возвращает True, если значение изменилось, и False в ином случае.
-        """
         if self._readonly:
             raise ReadOnlyError("Attempted to modify a frozen LDT branch.")
         
         new_val = self._serialize_recursive(value)
         
-        if self.get(key) == new_val:
-            return False
-        
         keys = key.split('.')
         target = self._data
-        
         for k in keys[:-1]:
             if k not in target or not isinstance(target[k], dict):
                 target[k] = {}
             target = target[k]
         
-        target[keys[-1]] = new_val
+        last_key = keys[-1]
+        if target.get(last_key) == new_val:
+            return False
+        
+        target[last_key] = new_val
         return True
     
     def get(self, path: str, target_cls: Optional[Type] = None, default: Any = None) -> Any:
@@ -162,16 +170,26 @@ class LDT:
     
     def _serialize_recursive(self, obj: Any) -> Any:
         obj_type = type(obj)
+        
+        # FAST PATH: Самые частые типы проверяем первыми без вызова функций
+        if obj_type in (str, int, float, bool, type(None)):
+            return obj
+        
+        # CUSTOM SERIALIZERS
         if obj_type in self._SERIALIZERS:
             data = self._SERIALIZERS[obj_type](obj)
-            # Для Path не добавляем метаданные, чтобы JSON был чистым
             if obj_type not in (Path, PurePath) and isinstance(data, dict):
                 data["_dtype"] = self._get_full_name(obj_type)
             return data
         
-        if isinstance(obj, LDT): return obj._data
-        if isinstance(obj, dict): return {k: self._serialize_recursive(v) for k, v in obj.items()}
-        if isinstance(obj, list): return [self._serialize_recursive(i) for i in obj]
+        # CONTAINERS
+        if obj_type is list:
+            return [self._serialize_recursive(i) for i in obj]
+        if obj_type is dict:
+            return {k: self._serialize_recursive(v) for k, v in obj.items()}
+        if isinstance(obj, LDT):
+            return obj._data
+        
         return obj
     
     def _deserialize_recursive(self, val: Any, target_cls: Optional[Type] = None) -> Any:

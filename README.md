@@ -110,7 +110,7 @@ with cfg.blockSignals():
 LDT Nexus поддерживает разные форматы через систему драйверов:
 
 ```python
-from ldt.io.drivers import JsonDriver, YamlDriver, TomlDriver
+from ldt.io_drives.drivers import JsonDriver, YamlDriver, TomlDriver
 
 # Для YAML (требуется ldt-nexus[yaml])
 cfg_yaml = NexusStore("config.yaml", driver=YamlDriver())

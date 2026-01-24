@@ -1,11 +1,10 @@
-from collections import deque
 from pathlib import Path
 from typing import Optional, List, Type, Any, Union
 from contextlib import contextmanager
 
 from .protocols import PathProtocol
 from ldt.core import LDT
-from .drivers import BaseDriver
+from .drivers import BaseDriver, JsonDriver
 
 
 class NexusStore:
@@ -14,25 +13,30 @@ class NexusStore:
     Использует collections.deque для эффективного управления стеком групп.
     """
     
-    def __init__(self, file_path: Union[str, PathProtocol], driver: BaseDriver, preload: bool = True):
+    def __init__(self, file_path: Union[str, PathProtocol], driver: BaseDriver = None, preload: bool = True):
         self.path: PathProtocol = Path(file_path) if isinstance(file_path, str) else file_path
-        self.driver = driver
+        self.driver = driver or JsonDriver()
         self.ldt = LDT()
-        self._group_stack: deque[str] = deque()
+        self._group_stack: list[str] = []
+        self._cached_prefix = ""
         self._signals_blocked = False
         if preload:
             self.load()
     
     # --- Навигация и Группы ---
     
+    def _update_prefix(self):
+        self._cached_prefix = ".".join(self._group_stack)
+    
     def beginGroup(self, prefix: str):
         if prefix:
-            clean_prefix = prefix.strip('./').replace('/', '.')
-            self._group_stack.append(clean_prefix)
+            self._group_stack.append(prefix.strip('./').replace('/', '.'))
+            self._update_prefix()
     
     def endGroup(self):
         if self._group_stack:
             self._group_stack.pop()
+            self._update_prefix()
         else:
             print("[LDTSettings] Warning: endGroup() called without matching beginGroup()")
     
@@ -84,18 +88,12 @@ class NexusStore:
     # --- Инспекция (Методы для итерации) ---
     
     def allKeys(self) -> List[str]:
-        """Возвращает список всех ключей в текущей группе (только верхний уровень)"""
-        branch = self._get_current_branch()
-        if isinstance(branch, dict):
-            return [k for k, v in branch.items() if not isinstance(v, dict)]
-        return []
+        branch = self.ldt.get_raw_branch(self._cached_prefix)
+        return [k for k, v in branch.items() if not isinstance(v, dict)] if branch else []
     
     def childGroups(self) -> List[str]:
-        """Возвращает список имен подгрупп в текущей группе"""
-        branch = self._get_current_branch()
-        if isinstance(branch, dict):
-            return [k for k, v in branch.items() if isinstance(v, dict)]
-        return []
+        branch = self.ldt.get_raw_branch(self._cached_prefix)
+        return [k for k, v in branch.items() if isinstance(v, dict)] if branch else []
     
     def childKeys(self) -> List[str]:
         """Аналог allKeys(), возвращает только ключи (не группы)"""
@@ -125,9 +123,9 @@ class NexusStore:
     
     def _get_full_key(self, key: str) -> str:
         clean_key = key.strip('./').replace('/', '.')
-        if not self._group_stack:
+        if not self._cached_prefix:
             return clean_key
-        return f"{'.'.join(self._group_stack)}.{clean_key}"
+        return f"{self._cached_prefix}.{clean_key}"
     
     def _get_current_branch(self) -> Any:
         """Возвращает сырые данные текущей ветки согласно стеку групп"""

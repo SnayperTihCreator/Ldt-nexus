@@ -1,9 +1,14 @@
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 from .core import LDT, LDTError, ReadOnlyError
 from .fields import NexusField
-from .io.store import NexusStore
-from .io.drivers.standard import JsonDriver
+from .io_drives.store import NexusStore
+from .io_drives.drivers.standard import JsonDriver
+from .io_drives.drivers import extra
 
-# Остальные драйверы импортируются из ldt.io.drivers по мере необходимости
-__all__ = ["LDT", "NexusStore", "NexusField", "JsonDriver", "__version__"]
+__all__ = [
+    "__version__", "extra",
+    "LDT", "NexusStore", "NexusField",
+    "JsonDriver",
+    "ReadOnlyError", "LDTError"
+]
