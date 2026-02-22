@@ -1,13 +1,11 @@
 [project]
 name = "ldt-nexus"
-dynamic = ["version"]
+version = "1.1.0"
 description = "Reactive data-tree management with pathlib-hybrid interface"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "SnayperTihCreator" }]
-dependencies = [
-    "attrs>=23.1.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
 yaml = ["pyyaml>=6.0"]
@@ -16,23 +14,27 @@ json5 = ["json5>=0.9.14"]
 all = ["ldt-nexus[yaml,toml,json5]"]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
 
-[tool.hatch.version]
-path = "ldt/__init__.py"
 
-[tool.hatch.build.targets.wheel]
-packages = ["ldt"]
+[tool.maturin]
+module-name = "ldt._ldt"
+features = ["pyo3/extension-module"]
+python-source = "."
+include = [
+    "ldt/**/*.py",
+    "ldt/_ldt.pyi"
+]
 
-[tool.hatch.build.targets.sdist]
 exclude = [
-    "/tests",
-    "/.github",
-    ".gitignore",
-    "default.gitignore",
+    "tests/**",
+    "docs/**",
+    "benchmarks/**",
+    ".github/**",
     "uv.lock",
-    "*.spec"
+    "*.bat",
+    "*.ps1"
 ]
 
 [tool.uv.sources]
@@ -42,4 +44,5 @@ ldt-nexus = { workspace = true }
 dev = [
     "ldt-nexus[all]",
     "pytest>=9.0.2",
+    "pytest-benchmark>=5.2.3",
 ]

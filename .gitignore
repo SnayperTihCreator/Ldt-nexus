@@ -1,4 +1,25 @@
-.idea
-.venv
+# --- Rust ---
+/target/
+Cargo.lock
 
-/dist/
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# --- Скомпилированные расширения (Бинарники) ---
+# Игнорируем расширения внутри папки ldt
+ldt/*.pyd
+ldt/*.so
+ldt/*.abi3.so
+
+# --- IDE ---
+.idea/
+.vscode/
+
+# --- Сборка пакетов ---
+dist/
+*.egg-info/

@@ -3,7 +3,7 @@ import json
 from .base import BaseDriver
 from ldt.io_drives.protocols import PathProtocol, SupportWrite, SupportRead
 
-__all__ = ["JsonDriver"]
+__all__ = ["JsonDriver", "MemoryDriver"]
 
 
 class JsonDriver(BaseDriver):
@@ -20,3 +20,19 @@ class JsonDriver(BaseDriver):
     
     def write_stream(self, stream: SupportWrite, data: dict):
         json.dump(data, stream, ensure_ascii=False, indent=4)
+
+
+class MemoryDriver(BaseDriver):
+    """Драйвер, который ничего не пишет на диск. Данные живут только в LDT."""
+    
+    def read(self, path: PathProtocol) -> dict:
+        return {}
+    
+    def write(self, path: PathProtocol, data: dict):
+        pass
+    
+    def read_stream(self, stream: SupportRead) -> dict:
+        return {}
+    
+    def write_stream(self, stream: SupportWrite, data: dict):
+        pass
