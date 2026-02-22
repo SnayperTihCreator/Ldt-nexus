@@ -83,9 +83,7 @@ class NexusStore:
     
     def sync(self):
         try:
-            # Стандартный Pathlib mkdir
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            # Передаем напрямую data (PyDict)
             self.driver.write(self.path, self.ldt.to_dict())
         except Exception as e:
             print(f"[NexusStore] Sync error: {e}")

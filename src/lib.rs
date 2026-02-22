@@ -79,6 +79,11 @@ impl NativeLDT {
     ) -> PyResult<Py<PyAny>> {
         let obj_bound = obj.bind(py);
 
+        if let Ok(ldt_obj) = obj_bound.downcast::<NativeLDT>() {
+            let inner_data = ldt_obj.borrow().data.clone_ref(py);
+            return Ok(inner_data.into_any());
+        }
+
         if obj_bound.is_instance_of::<PyString>() ||
            obj_bound.is_instance_of::<pyo3::types::PyInt>() ||
            obj_bound.is_instance_of::<pyo3::types::PyFloat>() ||
