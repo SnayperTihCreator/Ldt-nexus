@@ -1,0 +1,42 @@
+[build-system]
+requires = ["maturin>=1.12,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "LdtNexus"
+version = "1.2.0"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+dependencies = [
+    "attrs>=26.1.0",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "ldt._ldt_core"
+features = ["pyo3/extension-module"]
+include = [
+    "ldt/**/*.py",
+    "ldt/*.pyi"
+]
+
+[tool.pyo3-stub-gen]
+generate-init-py = true
+
+[tool.uv.sources]
+ldtnexus = {workspace = true, editable = true}
+
+[dependency-groups]
+dev = [
+    "taskipy>=1.14.1",
+]
+
+[tool.taskipy.tasks]
+gen = "cargo run --bin stub_gen"
+dev = "task gen && maturin dev"
+build = "task gen && maturin build --release"
