@@ -1,10 +1,11 @@
-use std::fs::{read_to_string, write};
+use std::fs::{File, create_dir_all, read_to_string, write};
+use std::io::{BufReader, ErrorKind};
+use std::path::Path;
 
-use pyo3::{prelude::*, types::PyString};
+use pyo3::exceptions::*;
+use pyo3::prelude::*;
 use pythonize::{depythonize, pythonize};
 use serde_json::{json, Value};
-use pyo3::types::{PyStringMethods};
-
 pub enum Drivers {
     Json,
     Json5,
@@ -16,70 +17,90 @@ pub enum Drivers {
 
 impl Drivers {
 
-    pub fn load(&self, py: Python<'_>, path: &str) -> Value{
+    pub fn load(&self, py: Python<'_>, path: &str) -> PyResult<Value>{
         match self {
-            Drivers::Memory => json!({}),
-            Drivers::Json | Drivers::Json5 | Drivers::Toml | Drivers::Yaml => {
-                let content = read_to_string(path).unwrap_or_else(|_| "{}".to_string());
-                match self {
-                    Drivers::Json => serde_json::from_str(&content).unwrap_or(json!({})),
-                    Drivers::Json5 => json5::from_str(&content).unwrap_or(json!({})),
-                    Drivers::Toml => toml::from_str(&content).unwrap_or(json!({})),
-                    Drivers::Yaml => serde_yaml::from_str(&content).unwrap_or(json!({})),
-                    _ => unreachable!()
-                }
-            }            
+            Drivers::Memory => Ok(json!({})),
             Drivers::Custom(obj) => {
                 let bound = obj.bind(py);
-                let res = bound.call_method1("read", (path,))
-                .expect("Ldt-nexus: Custom driver 'read' method failed");
-                depythonize(&res).unwrap_or(json!({}))
+                let res = bound.call_method1("read", (path,))?;
+                depythonize(&res).map_err(|e| PyTypeError::new_err(format!("Failed to depythonize custom driver data: {}", e)))
+            },
+            _ => {
+                let file = match File::open(path) {
+                    Ok(f) => f,
+                    Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(json!({})),
+                    Err(e) => return Err(PyIOError::new_err(format!("Failed to open config file: {}", e)))
+                };
+                let reader = BufReader::new(file);
+                match self {
+                    Drivers::Json => serde_json::from_reader(reader)
+                    .map_err(|e| PyTypeError::new_err(format!("JSON parse error: {}", e))),
+                    Drivers::Json5 => {
+                        let content = read_to_string(path)?;
+                        json5::from_str(&content).map_err(|e| PyTypeError::new_err(format!("JSON5 parse error: {}", e)))
+                    },
+                    Drivers::Toml => {
+                        let content = read_to_string(path)?;
+                        toml::from_str(&content).map_err(|e| PyTypeError::new_err(format!("TOML parse error: {}", e)))
+                    },
+                    Drivers::Yaml => serde_yaml::from_reader(reader)
+                    .map_err(|e| PyTypeError::new_err(format!("YAML parse error: {}", e))),
+                    _ => unreachable!()
+                    
+                }
             }
         }
     }
 
-    pub fn save(&self, py: Python<'_>, path: &str, data: &Value) {
+    pub fn save(&self, py: Python<'_>, path: &str, data: &Value) -> PyResult<()> {
         match self {
-            Drivers::Memory => {},
-            Drivers::Json | Drivers::Json5 | Drivers::Toml | Drivers::Yaml => {
-                let content = match self {
-                    Self::Json5 => json5::to_string(&data).unwrap_or_default(),
-                    Self::Json => serde_json::to_string_pretty(&data).unwrap_or_default(),
-                    Self::Toml => toml::to_string_pretty(&data).unwrap_or_default(),
-                    Self::Yaml => serde_yaml::to_string(&data).unwrap_or_default(),
-                    _ => unreachable!()
-                };
-
-                if let Err(e) = write(path, content){
-                    eprintln!("Ldt-nexus Error: Failed to write file {}: {}", path, e);
-                }
-            },
+            Drivers::Memory => Ok(()),
             Drivers::Custom(obj) => {
                 let bound = obj.bind(py);
                 let pydata = pythonize(py, &data)
-                .expect("Ldt-nexus: Failed to pythonize data for custom driver");
-                
-                if let Err(e) = bound.call_method1("write", (path, pydata)) {
-                    e.print(py);
-                }
+                .map_err(|e| PyTypeError::new_err(format!("Failed to pythonize data: {}", e)))?;
+                bound.call_method1("write", (path, pydata))?;
+                Ok(())
+            },
 
+            _ => {
+                if let Some(parent) = Path::new(path).parent() {
+                    create_dir_all(parent)?;
+                } 
+
+                let content = match self {
+                    Drivers::Json => serde_json::to_string_pretty(data).unwrap(),
+                    Drivers::Json5 => json5::to_string(data).unwrap(),
+                    Drivers::Toml => toml::to_string_pretty(data).unwrap(),
+                    Drivers::Yaml => serde_yaml::to_string(data).unwrap(),
+                    _ => unreachable!()
+                };
+
+                write(path, content)?;
+                Ok(())
             }
         }
     }
 
-    pub fn from_args(obj: Bound<'_, PyAny>) -> Self {
-        if let Ok(data) = obj.cast::<PyString>() {
-            let name  = data.to_str().unwrap_or("json");
-            match name {
-                "yaml" => Drivers::Yaml,
-                "toml" => Drivers::Toml,
-                "json5" => Drivers::Json5,
-                "memory" => Drivers::Memory,
-                _ => Drivers::Json,
+    pub fn from_args(obj: Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(name) = obj.extract::<String>() {
+            match name.to_lowercase().as_str() {
+                "json" => Ok(Drivers::Json),
+                "json5" => Ok(Drivers::Json5),
+                "toml" => Ok(Drivers::Toml),
+                "yaml" => Ok(Drivers::Yaml),
+                "memory" => Ok(Drivers::Memory),
+                _ => Err(pyo3::exceptions::PyValueError::new_err(format!("Unknown driver: {}", name))),
             }
         } else {
-            Drivers::Custom(obj.unbind())
+            if obj.hasattr("read")? && obj.hasattr("write")? {
+                Ok(Drivers::Custom(obj.unbind()))
+            } else {
+                Err(pyo3::exceptions::PyTypeError::new_err(
+                    "Driver must be a string (name) or an object with 'read' and 'write' methods"
+                ))
+            }
         }
     }
-    
+
 }

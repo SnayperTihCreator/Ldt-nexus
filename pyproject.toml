@@ -14,7 +14,11 @@ classifiers = [
 
 dependencies = [
     "attrs>=26.1.0",
+    "cachetools>=7.0.6",
 ]
+
+[project.optional-dependencies]
+signals = ["psygnal"]
 
 [tool.maturin]
 python-source = "python"
@@ -33,6 +37,8 @@ ldtnexus = {workspace = true, editable = true}
 
 [dependency-groups]
 dev = [
+    "pytest>=9.0.3",
+    "pytest-benchmark>=5.2.3",
     "taskipy>=1.14.1",
 ]
 
